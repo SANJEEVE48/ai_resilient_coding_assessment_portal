@@ -1,0 +1,48 @@
+{% if submission %}
+<section class="card p-3 mt-3" aria-labelledby="ai-review-heading">
+  <div class="d-flex flex-wrap justify-content-between align-items-start gap-2">
+    <div>
+      <h5 id="ai-review-heading">AI logic review</h5>
+      <p class="text-muted mb-2">A recommendation based on the prompt, submitted code, and aggregate test results. Hidden test data is not shared. AI feedback can be wrong; faculty decide the final mark.</p>
+    </div>
+    {% if ai_review_enabled %}
+    <form method="post" action="{% url 'request_ai_review' submission.id %}">
+      {% csrf_token %}
+      <button class="btn btn-outline-primary" type="submit">{% if submission.ai_review %}Run review again{% else %}Review logic with AI{% endif %}</button>
+    </form>
+    {% else %}
+    <button class="btn btn-outline-secondary" type="button" disabled title="Configure AI_REVIEW_API_KEY on the server">AI review unavailable</button>
+    {% endif %}
+  </div>
+  {% if not ai_review_enabled %}
+  <p class="small text-muted mb-0">Set <code>AI_REVIEW_API_KEY</code> on the server to enable the OpenAI-compatible provider.</p>
+  {% elif ai_review_provider == 'ollama' %}
+  <p class="small text-muted mb-0">Using local Ollama without an API key. Start Ollama and download model <code>{{ ai_review_model }}</code> before requesting a review.</p>
+  {% endif %}
+  {% if submission.ai_review %}
+  <hr>
+  <div class="d-flex flex-wrap align-items-center gap-2 mb-2">
+    <strong>Suggested mark: {{ submission.ai_review.suggested_score|floatformat:1 }}/{{ submission.question.marks }}</strong>
+    <span class="badge text-bg-secondary">{{ submission.ai_review.confidence|title }} confidence</span>
+    <button class="btn btn-sm btn-outline-secondary js-use-ai-score" type="button" data-score="{{ submission.ai_review.suggested_score }}">Copy to manual marks</button>
+  </div>
+  <p><strong>Summary:</strong> {{ submission.ai_review.summary }}</p>
+  <p><strong>Logic review:</strong> {{ submission.ai_review.logic_review }}</p>
+  <p><strong>Complexity:</strong> {{ submission.ai_review.complexity }}</p>
+  {% if submission.ai_review.likely_issues %}
+  <strong>Potential issues to inspect</strong>
+  <ul class="mb-0">
+    {% for issue in submission.ai_review.likely_issues %}<li>{{ issue }}</li>{% endfor %}
+  </ul>
+  {% endif %}
+  {% endif %}
+</section>
+<script>
+  document.querySelectorAll('.js-use-ai-score').forEach((button) => {
+    button.addEventListener('click', () => {
+      const manualMark = document.getElementById('id_manual_score');
+      if (manualMark) manualMark.value = button.dataset.score;
+    });
+  });
+</script>
+{% endif %}
